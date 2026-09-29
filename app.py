@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import os
+
 
 from huggingface_hub import hf_hub_download
 
@@ -25,26 +25,17 @@ MODEL_REPO = "bhgugvgytuyuyctrctcju/yieldsense-random-forest"
 MODEL_FILE = "models/yieldsense_random_forest.pkl"
 
 
-# ==========================================
-# LOAD MODEL FROM HUGGING FACE
-# ==========================================
-
 @st.cache_resource
 def load_model():
 
-
     model_path = hf_hub_download(
-    repo_id=MODEL_REPO,
-    filename=MODEL_FILE,
-    token=os.getenv("HF_TOKEN")
-)
+        repo_id=MODEL_REPO,
+        filename=MODEL_FILE
+    )
 
-    model = joblib.load(model_path)
-
-    return model
+    return joblib.load(model_path)
 
 
-# Load model
 model = load_model()
 
 
