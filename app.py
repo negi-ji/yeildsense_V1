@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-MODEL_REPO = "bhgugvgytuyuyctrctcju/yieldsense-random-forest"
+MODEL_REPO = "bhgugvgytuyuyctrctcjuy/yieldsense-random-forest"
 MODEL_FILE = "models/yieldsense_random_forest.pkl"
 
 
