@@ -33,7 +33,7 @@ MODEL_FILE = "models/yieldsense_random_forest.pkl"
 def load_model():
 
 
-model_path = hf_hub_download(
+    model_path = hf_hub_download(
     repo_id=MODEL_REPO,
     filename=MODEL_FILE,
     token=os.getenv("HF_TOKEN")
