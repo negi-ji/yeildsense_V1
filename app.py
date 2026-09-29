@@ -1,14 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
-
-
 from huggingface_hub import hf_hub_download
-
-
-# ==========================================
-# PAGE CONFIG
-# ==========================================
 
 st.set_page_config(
     page_title="YieldSense",
@@ -16,18 +9,12 @@ st.set_page_config(
     layout="wide"
 )
 
-
-# ==========================================
-# HUGGING FACE MODEL CONFIG
-# ==========================================
-
 MODEL_REPO = "bhgugvgytuyuyctrctcju/yieldsense-random-forest"
 MODEL_FILE = "models/yieldsense_random_forest.pkl"
 
 
 @st.cache_resource
 def load_model():
-
     model_path = hf_hub_download(
         repo_id=MODEL_REPO,
         filename=MODEL_FILE
@@ -38,77 +25,36 @@ def load_model():
 
 model = load_model()
 
-
-# ==========================================
-# LOAD DATA
-# ==========================================
-
-df = pd.read_csv(
-    "data/yield_df.csv"
-)
-
-
-# ==========================================
-# CLEAN / RENAME COLUMNS
-# ==========================================
-
-# Remove unnecessary index column if present
+df = pd.read_csv("data/yield_df.csv")
 
 if "Unnamed: 0" in df.columns:
+    df = df.drop(columns=["Unnamed: 0"])
 
-    df = df.drop(
-        columns=["Unnamed: 0"]
-    )
-
-
-# Rename original dataset columns
-
-df = df.rename(
-    columns={
-        "hg/ha_yield": "yield",
-        "average_rain_fall_mm_per_year": "rainfall",
-        "pesticides_tonnes": "pesticides",
-        "avg_temp": "temperature"
-    }
-)
-
-
-# ==========================================
-# TITLE
-# ==========================================
+df = df.rename(columns={
+    "hg/ha_yield": "yield",
+    "average_rain_fall_mm_per_year": "rainfall",
+    "pesticides_tonnes": "pesticides",
+    "avg_temp": "temperature"
+})
 
 st.title("🌾 YieldSense")
-
-st.subheader(
-    "Precision Agriculture Yield Forecaster"
-)
+st.subheader("Precision Agriculture Yield Forecaster")
 
 st.write(
-    "Predict crop yield using historical "
-    "agricultural and weather data."
+    "Predict crop yield using historical agricultural and weather data."
 )
 
-
-# ==========================================
-# SIDEBAR
-# ==========================================
-
-st.sidebar.header(
-    "Farm Information"
-)
-
+st.sidebar.header("Farm Information")
 
 area = st.sidebar.selectbox(
     "Country / Area",
     sorted(df["Area"].unique())
 )
 
-
 crop = st.sidebar.selectbox(
     "Crop",
     sorted(df["Item"].unique())
 )
-
 
 year = st.sidebar.number_input(
     "Year",
@@ -117,14 +63,12 @@ year = st.sidebar.number_input(
     value=int(df["Year"].max())
 )
 
-
 rainfall = st.sidebar.number_input(
     "Rainfall (mm/year)",
     min_value=0.0,
     max_value=float(df["rainfall"].max()),
     value=float(df["rainfall"].mean())
 )
-
 
 pesticides = st.sidebar.number_input(
     "Pesticides (tonnes)",
@@ -133,7 +77,6 @@ pesticides = st.sidebar.number_input(
     value=float(df["pesticides"].mean())
 )
 
-
 temperature = st.sidebar.number_input(
     "Temperature (°C)",
     min_value=float(df["temperature"].min()),
@@ -141,160 +84,85 @@ temperature = st.sidebar.number_input(
     value=float(df["temperature"].mean())
 )
 
-
-# ==========================================
-# PREDICTION BUTTON
-# ==========================================
-
 predict_button = st.button(
     "🌱 Predict Crop Yield",
     use_container_width=True
 )
 
-
-# ==========================================
-# PREDICTION
-# ==========================================
-
 if predict_button:
 
-    input_data = pd.DataFrame(
-        {
-            "Area": [area],
-            "Item": [crop],
-            "Year": [year],
-            "rainfall": [rainfall],
-            "pesticides": [pesticides],
-            "temperature": [temperature]
-        }
-    )
+    input_data = pd.DataFrame({
+        "Area": [area],
+        "Item": [crop],
+        "Year": [year],
+        "rainfall": [rainfall],
+        "pesticides": [pesticides],
+        "temperature": [temperature]
+    })
 
+    prediction = model.predict(input_data)[0]
 
-    # ======================================
-    # MAKE PREDICTION
-    # ======================================
-
-    prediction = model.predict(
-        input_data
-    )[0]
-
-
-    # ======================================
-    # RESULT
-    # ======================================
-
-    st.success(
-        "Prediction completed!"
-    )
-
+    st.success("Prediction completed!")
 
     col1, col2, col3 = st.columns(3)
 
-
     with col1:
-
         st.metric(
             "Predicted Yield",
             f"{prediction:,.0f} hg/ha"
         )
 
-
     with col2:
-
-        st.metric(
-            "Crop",
-            crop
-        )
-
+        st.metric("Crop", crop)
 
     with col3:
-
-        st.metric(
-            "Area",
-            area
-        )
-
-
-    # ======================================
-    # CONVERT TO KG / HA
-    # ======================================
+        st.metric("Area", area)
 
     yield_kg = prediction / 100
-
     yield_tonnes = prediction / 100000
 
-
-    st.subheader(
-        "Yield Conversion"
-    )
-
+    st.subheader("Yield Conversion")
 
     col1, col2 = st.columns(2)
 
-
     with col1:
-
         st.metric(
             "Yield (kg/ha)",
             f"{yield_kg:,.2f}"
         )
 
-
     with col2:
-
         st.metric(
             "Yield (tonnes/ha)",
             f"{yield_tonnes:,.2f}"
         )
 
-
-    # ======================================
-    # INPUT SUMMARY
-    # ======================================
-
-    st.subheader(
-        "Prediction Inputs"
-    )
-
+    st.subheader("Prediction Inputs")
 
     st.dataframe(
         input_data,
         use_container_width=True
     )
 
-
-# ==========================================
-# DATASET INFORMATION
-# ==========================================
-
 st.divider()
 
-st.subheader(
-    "About the Dataset"
-)
-
+st.subheader("About the Dataset")
 
 col1, col2, col3 = st.columns(3)
 
-
 with col1:
-
     st.metric(
         "Records",
         f"{len(df):,}"
     )
 
-
 with col2:
-
     st.metric(
         "Countries / Areas",
         df["Area"].nunique()
     )
 
-
 with col3:
-
     st.metric(
         "Crops",
         df["Item"].nunique()
