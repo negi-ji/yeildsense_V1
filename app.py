@@ -1,6 +1,8 @@
+import os
+import requests
+import joblib
 import streamlit as st
 import pandas as pd
-import joblib
 
 
 # ==========================================
@@ -18,9 +20,43 @@ st.set_page_config(
 # LOAD MODEL
 # ==========================================
 
-model = joblib.load(
-    "models/yieldsense_random_forest.pkl"
-)
+MODEL_URL = os.getenv("MODEL_URL")
+
+
+@st.cache_resource
+def load_model():
+
+    if not MODEL_URL:
+        st.error(
+            "MODEL_URL is not configured. "
+            "Please add your model URL in Render Environment Variables."
+        )
+        st.stop()
+
+    model_path = "/tmp/yieldsense_random_forest.pkl"
+
+    if not os.path.exists(model_path):
+
+        response = requests.get(
+            MODEL_URL,
+            stream=True,
+            timeout=300
+        )
+
+        response.raise_for_status()
+
+        with open(model_path, "wb") as file:
+
+            for chunk in response.iter_content(
+                chunk_size=1024 * 1024
+            ):
+                if chunk:
+                    file.write(chunk)
+
+    return joblib.load(model_path)
+
+
+model = load_model()
 
 
 # ==========================================
@@ -36,18 +72,21 @@ df = pd.read_csv(
 # CLEAN / RENAME COLUMNS
 # ==========================================
 
-# Remove unnecessary index column if present
 if "Unnamed: 0" in df.columns:
-    df = df.drop(columns=["Unnamed: 0"])
+
+    df = df.drop(
+        columns=["Unnamed: 0"]
+    )
 
 
-# Rename original dataset columns
-df = df.rename(columns={
-    "hg/ha_yield": "yield",
-    "average_rain_fall_mm_per_year": "rainfall",
-    "pesticides_tonnes": "pesticides",
-    "avg_temp": "temperature"
-})
+df = df.rename(
+    columns={
+        "hg/ha_yield": "yield",
+        "average_rain_fall_mm_per_year": "rainfall",
+        "pesticides_tonnes": "pesticides",
+        "avg_temp": "temperature"
+    }
+)
 
 
 # ==========================================
@@ -70,7 +109,9 @@ st.write(
 # SIDEBAR
 # ==========================================
 
-st.sidebar.header("Farm Information")
+st.sidebar.header(
+    "Farm Information"
+)
 
 
 area = st.sidebar.selectbox(
@@ -133,17 +174,22 @@ predict_button = st.button(
 
 if predict_button:
 
-    input_data = pd.DataFrame({
-        "Area": [area],
-        "Item": [crop],
-        "Year": [year],
-        "rainfall": [rainfall],
-        "pesticides": [pesticides],
-        "temperature": [temperature]
-    })
+    input_data = pd.DataFrame(
+        {
+            "Area": [area],
+            "Item": [crop],
+            "Year": [year],
+            "rainfall": [rainfall],
+            "pesticides": [pesticides],
+            "temperature": [temperature]
+        }
+    )
 
 
-    # Make prediction
+    # ======================================
+    # MAKE PREDICTION
+    # ======================================
+
     prediction = model.predict(
         input_data
     )[0]
@@ -186,7 +232,7 @@ if predict_button:
 
 
     # ======================================
-    # CONVERT TO KG/HA
+    # CONVERT TO KG / HA
     # ======================================
 
     yield_kg = prediction / 100
@@ -194,7 +240,9 @@ if predict_button:
     yield_tonnes = prediction / 100000
 
 
-    st.subheader("Yield Conversion")
+    st.subheader(
+        "Yield Conversion"
+    )
 
 
     col1, col2 = st.columns(2)
