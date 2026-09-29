@@ -1,8 +1,8 @@
-import os
-import requests
-import joblib
 import streamlit as st
 import pandas as pd
+import joblib
+
+from huggingface_hub import hf_hub_download
 
 
 # ==========================================
@@ -17,45 +17,31 @@ st.set_page_config(
 
 
 # ==========================================
-# LOAD MODEL
+# HUGGING FACE MODEL CONFIG
 # ==========================================
 
-MODEL_URL = os.getenv("MODEL_URL")
+MODEL_REPO = "bhgugvgytuyuyctrctcju/yieldsense-random-forest"
+MODEL_FILE = "models/yieldsense_random_forest.pkl"
 
+
+# ==========================================
+# LOAD MODEL FROM HUGGING FACE
+# ==========================================
 
 @st.cache_resource
 def load_model():
 
-    if not MODEL_URL:
-        st.error(
-            "MODEL_URL is not configured. "
-            "Please add your model URL in Render Environment Variables."
-        )
-        st.stop()
+    model_path = hf_hub_download(
+        repo_id=MODEL_REPO,
+        filename=MODEL_FILE
+    )
 
-    model_path = "/tmp/yieldsense_random_forest.pkl"
+    model = joblib.load(model_path)
 
-    if not os.path.exists(model_path):
-
-        response = requests.get(
-            MODEL_URL,
-            stream=True,
-            timeout=300
-        )
-
-        response.raise_for_status()
-
-        with open(model_path, "wb") as file:
-
-            for chunk in response.iter_content(
-                chunk_size=1024 * 1024
-            ):
-                if chunk:
-                    file.write(chunk)
-
-    return joblib.load(model_path)
+    return model
 
 
+# Load model
 model = load_model()
 
 
@@ -72,12 +58,16 @@ df = pd.read_csv(
 # CLEAN / RENAME COLUMNS
 # ==========================================
 
+# Remove unnecessary index column if present
+
 if "Unnamed: 0" in df.columns:
 
     df = df.drop(
         columns=["Unnamed: 0"]
     )
 
+
+# Rename original dataset columns
 
 df = df.rename(
     columns={
