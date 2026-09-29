@@ -5,7 +5,7 @@ from huggingface_hub import hf_hub_download
 
 
 # =========================================================
-# PAGE CONFIGURATION
+# PAGE CONFIG
 # =========================================================
 
 st.set_page_config(
@@ -16,7 +16,7 @@ st.set_page_config(
 
 
 # =========================================================
-# HUGGING FACE MODEL SETTINGS
+# MODEL CONFIGURATION
 # =========================================================
 
 MODEL_REPO = "bhgugvgvtyuvyctrctcjuy/yieldsense-random-forest"
@@ -27,7 +27,7 @@ MODEL_FILE = "models/yieldsense_random_forest.pkl"
 # LOAD MODEL
 # =========================================================
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def load_model():
 
     model_path = hf_hub_download(
@@ -40,37 +40,40 @@ def load_model():
     return model
 
 
-model = load_model()
-
-
 # =========================================================
 # LOAD DATASET
 # =========================================================
 
-df = pd.read_csv("data/yield_df.csv")
+@st.cache_data
+def load_data():
+
+    data = pd.read_csv("data/yield_df.csv")
+
+    if "Unnamed: 0" in data.columns:
+        data = data.drop(columns=["Unnamed: 0"])
+
+    data = data.rename(columns={
+        "hg/ha_yield": "yield",
+        "average_rain_fall_mm_per_year": "rainfall",
+        "pesticides_tonnes": "pesticides",
+        "avg_temp": "temperature"
+    })
+
+    return data
 
 
-# Remove unnecessary index column
-if "Unnamed: 0" in df.columns:
-    df = df.drop(columns=["Unnamed: 0"])
-
-
-# Rename columns to match the model
-df = df.rename(columns={
-    "hg/ha_yield": "yield",
-    "average_rain_fall_mm_per_year": "rainfall",
-    "pesticides_tonnes": "pesticides",
-    "avg_temp": "temperature"
-})
+df = load_data()
 
 
 # =========================================================
-# MAIN TITLE
+# HEADER
 # =========================================================
 
 st.title("🌾 YieldSense")
 
-st.subheader("Precision Agriculture Yield Forecaster")
+st.subheader(
+    "Precision Agriculture Yield Forecaster"
+)
 
 st.write(
     "Predict crop yield using historical agricultural "
@@ -85,21 +88,18 @@ st.write(
 st.sidebar.header("🌱 Farm Information")
 
 
-# Country / Area
 area = st.sidebar.selectbox(
     "Country / Area",
     sorted(df["Area"].unique())
 )
 
 
-# Crop
 crop = st.sidebar.selectbox(
     "Crop",
     sorted(df["Item"].unique())
 )
 
 
-# Year
 year = st.sidebar.number_input(
     "Year",
     min_value=int(df["Year"].min()),
@@ -108,7 +108,6 @@ year = st.sidebar.number_input(
 )
 
 
-# Rainfall
 rainfall = st.sidebar.number_input(
     "Rainfall (mm/year)",
     min_value=0.0,
@@ -117,7 +116,6 @@ rainfall = st.sidebar.number_input(
 )
 
 
-# Pesticides
 pesticides = st.sidebar.number_input(
     "Pesticides (tonnes)",
     min_value=0.0,
@@ -126,7 +124,6 @@ pesticides = st.sidebar.number_input(
 )
 
 
-# Temperature
 temperature = st.sidebar.number_input(
     "Temperature (°C)",
     min_value=float(df["temperature"].min()),
@@ -151,7 +148,6 @@ predict_button = st.button(
 
 if predict_button:
 
-    # Create input dataframe
     input_data = pd.DataFrame({
         "Area": [area],
         "Item": [crop],
@@ -162,16 +158,44 @@ if predict_button:
     })
 
 
-    # Make prediction
-    prediction = model.predict(input_data)[0]
+    # -----------------------------------------------------
+    # LOAD MODEL ONLY WHEN NEEDED
+    # -----------------------------------------------------
+
+    with st.spinner("Loading YieldSense model..."):
+
+        try:
+
+            model = load_model()
+
+        except Exception as e:
+
+            st.error(
+                "The YieldSense model could not be loaded."
+            )
+
+            st.exception(e)
+
+            st.stop()
+
+
+    # -----------------------------------------------------
+    # MAKE PREDICTION
+    # -----------------------------------------------------
+
+    with st.spinner("Generating prediction..."):
+
+        prediction = model.predict(input_data)[0]
+
+
+    st.success(
+        "Prediction completed successfully! 🎉"
+    )
 
 
     # =====================================================
-    # PREDICTION RESULT
+    # RESULT CARDS
     # =====================================================
-
-    st.success("Prediction completed successfully! 🎉")
-
 
     col1, col2, col3 = st.columns(3)
 
@@ -201,13 +225,11 @@ if predict_button:
 
 
     # =====================================================
-    # UNIT CONVERSION
+    # CONVERSION
     # =====================================================
 
-    # 1 kg = 100 hg
     yield_kg = prediction / 100
 
-    # 1 tonne = 1000 kg
     yield_tonnes = yield_kg / 1000
 
 
