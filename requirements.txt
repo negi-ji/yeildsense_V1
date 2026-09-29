@@ -5,3 +5,4 @@ xgboost
 plotly
 streamlit
 joblib
+requests
