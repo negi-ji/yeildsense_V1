@@ -14,8 +14,7 @@ MODEL_REPO = "bhgugvgvtyuvyctrctcjuy/yieldsense-random-forest"
 MODEL_FILE = "models/yieldsense_random_forest.pkl"
 
 
-@st.cache_resource
-def load_model():
+
 
 @st.cache_resource
 def load_model():
